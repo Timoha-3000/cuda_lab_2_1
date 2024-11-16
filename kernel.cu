@@ -6,7 +6,13 @@
 #define N 1024   // Размер матриц
 #define BLOCK_SIZE 16  // Размер блока
 
-// Функция для проверки ошибок CUDA
+/// <summary>
+/// Функция для проверки ошибок CUDA
+/// </summary>
+/// <param name="A">- Первый вектор</param>
+/// <param name="B">- Второй вектор</param>
+/// <param name="C">- Результирующий вектор</param>
+/// <param name="n">- Размер векторов</param>
 void checkCudaError(cudaError_t err, const char* msg) {
     if (err != cudaSuccess) {
         fprintf(stderr, "CUDA error at %s: %s\n", msg, cudaGetErrorString(err));
@@ -14,7 +20,13 @@ void checkCudaError(cudaError_t err, const char* msg) {
     }
 }
 
-// Перемножение матриц на CPU
+/// <summary>
+/// Перемножение матриц на CPU
+/// </summary>
+/// <param name="A">- Первый вектор</param>
+/// <param name="B">- Второй вектор</param>
+/// <param name="C">- Результирующий вектор</param>
+/// <param name="n">- Размер векторов</param>
 void matMulCPU(int* A, int* B, int* C, int n) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
@@ -27,7 +39,13 @@ void matMulCPU(int* A, int* B, int* C, int n) {
     }
 }
 
-// Ядро с использованием глобальной памяти
+/// <summary>
+/// Ядро с использованием глобальной памяти
+/// </summary>
+/// <param name="A">- Первый вектор</param>
+/// <param name="B">- Второй вектор</param>
+/// <param name="C">- Результирующий вектор</param>
+/// <param name="n">- Размер векторов</param>
 __global__ void matMulGlobal(int* A, int* B, int* C, int n) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -41,11 +59,22 @@ __global__ void matMulGlobal(int* A, int* B, int* C, int n) {
     }
 }
 
-// Ядро с использованием разделяемой памяти
+/// <summary>
+/// Ядро с использованием разделяемой памяти
+/// </summary>
+/// <param name="A">- Первый вектор</param>
+/// <param name="B">- Второй вектор</param>
+/// <param name="C">- Результирующий вектор</param>
+/// <param name="n">- Размер векторов</param>
 __global__ void matMulShared(int* A, int* B, int* C, int n) {
+    // как бы, ну, разделяемая память
     __shared__ int sA[BLOCK_SIZE][BLOCK_SIZE];
     __shared__ int sB[BLOCK_SIZE][BLOCK_SIZE];
 
+    // blockIdx.x;  // индексы блока
+    // blockIdx.y;  //
+    // threadIdx.x; // индексы нити внутри блока
+    // threadIdx.y; //
     int row = blockIdx.y * blockDim.y + threadIdx.y;
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     int tx = threadIdx.x;
@@ -54,22 +83,15 @@ __global__ void matMulShared(int* A, int* B, int* C, int n) {
     int sum = 0;
 
     for (int t = 0; t < (n + BLOCK_SIZE - 1) / BLOCK_SIZE; t++) {
-        if (row < n && t * BLOCK_SIZE + tx < n)
-            sA[ty][tx] = A[row * n + t * BLOCK_SIZE + tx];
-        else
-            sA[ty][tx] = 0;
+        sA[ty][tx] = A[row * n + t * BLOCK_SIZE + tx];
+        sB[ty][tx] = B[(t * BLOCK_SIZE + ty) * n + col];
 
-        if (col < n && t * BLOCK_SIZE + ty < n)
-            sB[ty][tx] = B[(t * BLOCK_SIZE + ty) * n + col];
-        else
-            sB[ty][tx] = 0;
-
-        __syncthreads();
+        __syncthreads(); // Убедимся, что подматрицы полностью загружены
 
         for (int k = 0; k < BLOCK_SIZE; k++) {
             sum += sA[ty][k] * sB[k][tx];
         }
-        __syncthreads();
+        __syncthreads(); // Убедимся, что подматрицы полностью загружены
     }
 
     if (row < n && col < n) {
@@ -88,7 +110,11 @@ void verifyResult(int* C1, int* C2, int n) {
     printf("Verification passed!\n");
 }
 
-int main() {
+/// <summary>
+/// Второе задание лабороторной,
+/// перемножение двух матриц в двумерной сетке.
+/// </summary>
+void multMatrixWith2DGridTask2() {
     int* h_A, * h_B, * h_C_cpu, * h_C_gpu_global, * h_C_gpu_shared;
     int* d_A, * d_B, * d_C;
     size_t size = N * N * sizeof(int);
@@ -167,6 +193,10 @@ int main() {
     free(h_C_cpu);
     free(h_C_gpu_global);
     free(h_C_gpu_shared);
+}
+
+int main() {
+    multMatrixWith2DGridTask2();
 
     return 0;
 }
